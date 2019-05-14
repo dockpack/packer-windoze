@@ -2,7 +2,7 @@
 prepare:
 	brew bundle
 	pip install -r requirements.txt
-	ansible-playbook packer-setup.yml -e man_packer_setup_host_type=2012r2 -e opt_packer_setup_packages='["visualcpp-build-tools", "notepadplusplus"]' 
+	ansible-playbook packer-setup.yml -e man_packer_setup_host_type=2012r2
 
 lint:
 	packer validate 2012r2/packer.json
