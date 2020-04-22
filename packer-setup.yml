@@ -23,7 +23,7 @@
       msg: packer-windoze only supports the hyperv, qemu, and virtualbox provider
 
   - name: check that pypsrp is installed
-    command: python -c "import pypsrp"
+    command: python3 -c "import pypsrp"
     changed_when: False
 
   roles:
