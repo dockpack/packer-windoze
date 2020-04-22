@@ -70,6 +70,9 @@ from ansible.module_utils.basic import missing_required_lib
 from ansible.module_utils.urls import open_url
 from ansible.plugins.lookup import LookupBase
 from ansible.module_utils.six.moves import urllib
+from ansible.utils.display import Display
+
+display = Display()
 
 BS_IMP_ERR = None
 try:
@@ -259,13 +262,20 @@ class WindowsUpdate:
             headers = {
                 'Content-Type': 'application/x-www-form-urlencoded',
             }
-            with urlopen('%s/DownloadDialog.aspx' % CATALOG_URL, data=data,
-                         headers=headers) as resp:
-                resp_text = to_text(resp.read()).strip()
 
-            link_matches = re.findall(DOWNLOAD_PATTERN, resp_text)
-            if len(link_matches) == 0:
-                raise ValueError("Failed to find any download links for '%s'" % str(self))
+            linkFound = False
+            while not linkFound:
+                with urlopen('%s/DownloadDialog.aspx' % CATALOG_URL, data=data,
+                            headers=headers, timeout=120) as resp:
+                    resp_text = to_text(resp.read()).strip()
+
+                link_matches = re.findall(DOWNLOAD_PATTERN, resp_text)
+                if len(link_matches) == 0:
+                    # raise ValueError("Failed to find any download links for '%s'" % str(self))
+                    display.vv("Download link not found - read it again")
+                    linkFound = False
+                else:
+                    linkFound = True
 
             download_urls = []
             for download_id, url in link_matches:
@@ -280,10 +290,20 @@ class WindowsUpdate:
             headers = {
                 'Content-Type': 'application/x-www-form-urlencoded',
             }
-            with urlopen('%s/ScopedViewInline.aspx?updateid=%s' % (CATALOG_URL, str(self.id)),
-                         headers=headers) as resp:
-                resp_text = to_text(resp.read()).lstrip()
-            self._details = BeautifulSoup(resp_text, 'html.parser')
+
+            bodyOK = False
+            while not bodyOK:
+                with urlopen('%s/ScopedViewInline.aspx?updateid=%s' % (CATALOG_URL, str(self.id)),
+                            headers=headers, timeout=120) as resp:
+                    resp_text = to_text(resp.read()).lstrip()
+                self._details = BeautifulSoup(resp_text, 'html.parser')
+
+                body_class_list = self._details.body['class']
+                if "error" in body_class_list:
+                    display.vv("Page error  - read it again")
+                    bodyOK = False
+                else:
+                    bodyOK = True
 
         return self._details
 
@@ -394,3 +414,4 @@ class LookupModule(LookupBase):
                 ret.append(update)
 
         return ret
+
